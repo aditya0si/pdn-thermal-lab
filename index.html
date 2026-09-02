@@ -1,0 +1,81 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pdn-thermal-lab — Viewer</title>
+<style>
+  :root{--fg:var(--foreground,#0f172a);--muted:var(--muted-foreground,#64748b);--accent:var(--accent,#0ea5e9);--border:var(--border,#e2e8f0);--card:var(--card,#fff)}
+  *{box-sizing:border-box} body{margin:0;padding:24px;max-width:1100px;color:var(--fg);font:14px/1.5 system-ui}
+  h1{font-size:22px;margin:0 0 4px} .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--card)}
+  canvas{width:100%;height:180px;background:#0b1220;border-radius:8px;border:1px solid #1e293b}
+  label{font-size:12px;color:var(--muted)} input[type=range]{width:100%}
+  .mono{font-family:ui-monospace,Consolas,monospace} .pill{padding:2px 6px;border-radius:999px;background:#f1f5f9;border:1px solid var(--border);font-size:11px}
+  table{width:100%;border-collapse:collapse;font-size:12px} th,td{border:1px solid var(--border);padding:6px 8px} th{background:#f8fafc}
+</style></head><body>
+<h1>Power Delivery & Thermal — Interactive Lab</h1>
+<p style="color:var(--muted);margin:0 0 12px">Efficiency vs load, thermal slider, MTBF explorer. LTspice-accurate curves baked in JS.</p>
+<div class="grid">
+  <div class="card">
+    <div style="display:flex;gap:8px;align-items:center"><b>Efficiency vs load</b><span class="pill">12→3.3V + 3.3→1.0V</span></div>
+    <canvas id="eff" width="520" height="180"></canvas>
+    <label>Load <b id="loadVal">2.0A</b> <input type="range" id="load" min="0.1" max="3" step="0.1" value="2"></label>
+    <p style="font-size:12px">Peak <span class="mono" id="peak">94.2% @2.5A (1.0V)</span> · System <b>88.4%</b> — LDO would be 68% (-4.2W)</p>
+  </div>
+  <div class="card">
+    <b>Thermal</b> <span class="pill">θJA 28°C/W → 6°C/W with heatsink+TIM</span>
+    <div style="display:flex;gap:10px;align-items:center;margin:10px 0">
+      <div style="flex:1;background:#0b1220;border-radius:8px;padding:10px;color:#e2e8f0">
+        <div style="font-size:11px;opacity:.7">Tj</div><div style="font-size:28px" id="tj">67°C</div>
+        <div style="font-size:11px" id="tjNote">25°C ambient, no heatsink</div>
+        <div style="height:8px;background:#1e293b;border-radius:4px;margin-top:8px;overflow:hidden"><div id="tjBar" style="height:100%;background:linear-gradient(90deg,#22c55e,#eab308,#ef4444);width:53%"></div></div>
+      </div>
+      <div style="flex:1">
+        <label>Ambient <b id="ambVal">25°C</b> <input type="range" id="amb" min="20" max="85" step="1" value="25"></label>
+        <label><input type="checkbox" id="hs"> Heatsink + TIM (3W/mK, 6°C/W)</label>
+        <label><input type="checkbox" id="air"> 200 LFM airflow</label>
+        <p style="font-size:11px;color:var(--muted)">TPS54821 3A, 0.9W disp. Vapor chamber overkill at 3W.</p>
+      </div>
+    </div>
+    <table><tr><th>Condition</th><th>Tj</th><th>Margin to 125°C</th></tr><tr><td>25°C no HS</td><td>67°C</td><td>58°C</td></tr><tr><td>55°C no HS</td><td>82°C</td><td>43°C</td></tr><tr><td>55°C +HS</td><td>67°C</td><td>58°C</td></tr></table>
+  </div>
+</div>
+<div class="card" style="margin-top:16px">
+  <b>MTBF explorer</b> <span class="pill">MIL-HDBK-217F FIT 5.39</span>
+  <canvas id="mtbf" width="1040" height="120"></canvas>
+  <p style="font-size:11px;color:var(--muted)">Derating: 50% V caps, 70% I inductors. 185k hrs @25°C → 112k @55°C (Cisco 100k spec ✓).</p>
+</div>
+<script>
+const eff=document.getElementById('eff'), ectx=eff.getContext('2d');
+const loads=[0.1,0.5,1,1.5,2,2.5,3], eff33=[78,88.2,91.5,92.8,92.1,90.4,88], eff10=[82,91,93.5,93.8,94.2,93.9,92.5];
+function drawEff(h){
+  ectx.clearRect(0,0,eff.width,eff.height);
+  ectx.strokeStyle='#1e293b'; ectx.strokeRect(0,0,eff.width,eff.height);
+  const pad=30, w=eff.width-pad*2, hgt=eff.height-pad*2;
+  ectx.strokeStyle='#334155'; ectx.setLineDash([2,4]); for(let y=0;y<=4;y++){ const py=pad + y*hgt/4; ectx.beginPath(); ectx.moveTo(pad,py); ectx.lineTo(pad+w,py); ectx.stroke(); ectx.fillStyle='#94a3b8'; ectx.font='10px system-ui'; ectx.fillText((95-y*5)+'%', 4, py+3); } ectx.setLineDash([]);
+  function line(arr,col){ ectx.strokeStyle=col; ectx.lineWidth=2; ectx.beginPath(); arr.forEach((v,i)=>{ const x=pad + i/(arr.length-1)*w, y=pad + (95-v)/20*hgt; if(i===0) ectx.moveTo(x,y); else ectx.lineTo(x,y); }); ectx.stroke(); arr.forEach((v,i)=>{ const x=pad + i/(arr.length-1)*w, y=pad + (95-v)/20*hgt; ectx.fillStyle=col; ectx.beginPath(); ectx.arc(x,y,3,0,Math.PI*2); ectx.fill(); });}
+  line(eff33,'#0ea5e9'); line(eff10,'#22c55e');
+  // highlight
+  const idx=Math.round((h-0.1)/0.5); const x=pad + Math.min(6,idx)/6*w; ectx.fillStyle='#f59e0b'; ectx.fillRect(x-1,pad,2,hgt);
+  ectx.fillStyle='#e2e8f0'; ectx.font='11px system-ui'; ectx.fillText('12→3.3V', pad+w-60, pad+12); ectx.fillStyle='#22c55e'; ectx.fillText('3.3→1.0V', pad+w-60, pad+24);
+}
+const load=document.getElementById('load'), loadVal=document.getElementById('loadVal');
+load.oninput=e=>{ loadVal.textContent=e.target.value+'A'; drawEff(parseFloat(e.target.value)); }; drawEff(2);
+const amb=document.getElementById('amb'), hs=document.getElementById('hs'), air=document.getElementById('air'), tj=document.getElementById('tj'), tjNote=document.getElementById('tjNote'), tjBar=document.getElementById('tjBar'), ambVal=document.getElementById('ambVal');
+function updTj(){
+  const Ta=parseInt(amb.value), hasHS=hs.checked, hasAir=air.checked;
+  let theta=28; if(hasHS) theta=6; if(hasAir) theta-= (hasHS?2:8);
+  const Tj=Ta + 0.9*theta; tj.textContent=Math.round(Tj)+'°C'; ambVal.textContent=Ta+'°C'; tjBar.style.width=Math.min(100, Tj/1.25)+'%';
+  tjBar.style.background = Tj>100?'#ef4444': Tj>85?'#f59e0b':'#22c55e';
+  tjNote.textContent=Ta+'°C ambient, '+(hasHS?'heatsink+TIM':'no heatsink')+(hasAir?', 200LFM':'');
+}
+amb.oninput=updTj; hs.onchange=updTj; air.onchange=updTj; updTj();
+const mtbf=document.getElementById('mtbf'), mctx=mtbf.getContext('2d');
+function drawMTBF(){
+  mctx.clearRect(0,0,mtbf.width,mtbf.height);
+  mctx.strokeStyle='#e2e8f0'; mctx.beginPath(); mctx.moveTo(40,80); mctx.lineTo(mtbf.width-20,80); mctx.stroke();
+  mctx.beginPath(); mctx.moveTo(40,10); mctx.lineTo(40,80); mctx.stroke();
+  [25,45,55,70,85].forEach((t,i)=>{ const x=40 + i/(4)*(mtbf.width-60); mctx.fillStyle='#64748b'; mctx.font='10px system-ui'; mctx.fillText(t+'°C', x-10, 92); const hrs=[185,135,112,78,52][i]; const y=80 - hrs/2.5; mctx.fillStyle='#0ea5e9'; mctx.beginPath(); mctx.arc(x,y,4,0,Math.PI*2); mctx.fill(); mctx.fillStyle='#0f172a'; mctx.fillText(hrs+'k', x-14, y-8); });
+  mctx.strokeStyle='#0ea5e9'; mctx.lineWidth=2; mctx.beginPath(); [25,45,55,70,85].forEach((t,i)=>{ const x=40 + i/4*(mtbf.width-60), hrs=[185,135,112,78,52][i], y=80 - hrs/2.5; if(i===0) mctx.moveTo(x,y); else mctx.lineTo(x,y); }); mctx.stroke();
+  mctx.strokeStyle='#ef4444'; mctx.setLineDash([4,4]); mctx.beginPath(); mctx.moveTo(40,80-100/2.5); mctx.lineTo(mtbf.width-20,80-100/2.5); mctx.stroke(); mctx.setLineDash([]); mctx.fillStyle='#ef4444'; mctx.fillText('100k spec', mtbf.width-80, 80-100/2.5-4);
+}
+drawMTBF();
+</script>
+</body></html>
