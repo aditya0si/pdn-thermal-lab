@@ -1,6 +1,8 @@
 # pdn-thermal-lab — Power Delivery & Thermal Lab
 
 <p align="center">
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-0ea5e9?style=flat-square)](https://aditya0si.github.io/pdn-thermal-lab/)
   <img src="https://img.shields.io/badge/efficiency-94.2%25%20peak-success?style=flat-square" />
   <img src="https://img.shields.io/badge/system-88.4%25-blue?style=flat-square" />
   <img src="https://img.shields.io/badge/MTBF-185k%20hrs-purple?style=flat-square" />
