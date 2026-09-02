@@ -1,5 +1,7 @@
 # pdn-thermal-lab — Power Delivery & Thermal Lab
 
+[![CI](https://github.com/aditya0si/pdn-thermal-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/aditya0si/pdn-thermal-lab/actions)
+
 <p align="center">
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-0ea5e9?style=flat-square)](https://aditya0si.github.io/pdn-thermal-lab/)
