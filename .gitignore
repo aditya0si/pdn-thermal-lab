@@ -3,11 +3,8 @@ __pycache__/
 .pytest_cache/
 .venv/
 *.raw
-*.log
 .DS_Store
 Thumbs.db
 .env
 ate_report.csv
-risk_report.json
 atpg_patterns.txt
-efficiency.png
